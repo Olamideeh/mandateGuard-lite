@@ -34,6 +34,14 @@ public class Principal {
     @Column(nullable = false, length = 254)
     private String email;
 
+
+    @Column(
+            name = "password_hash",
+            nullable = false,
+            length = 100
+    )
+    private String passwordHash;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private PrincipalType type;
