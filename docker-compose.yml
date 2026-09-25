@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mandateguard-postgres
+    environment:
+      POSTGRES_DB: mandateguard_db
+      POSTGRES_USER: mandateguard_user
+      POSTGRES_PASSWORD: mandateguard_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - mandateguard_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U mandateguard_user -d mandateguard_db
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: mandateguard-adminer
+    ports:
+      - "8085:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  mandateguard_postgres_data:
