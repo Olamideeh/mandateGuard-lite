@@ -25,4 +25,5 @@ public interface AiAgentRepository
     );
 
     List<AiAgent> findAllByPrincipal_Id(UUID principalId);
+
 }

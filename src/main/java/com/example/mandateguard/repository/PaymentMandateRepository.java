@@ -10,23 +10,12 @@ import java.util.UUID;
 public interface PaymentMandateRepository
         extends JpaRepository<PaymentMandate, UUID> {
 
-    boolean existsByReference(String reference);
-
-    Optional<PaymentMandate>
-    findByReferenceAndPrincipal_Id(
-            String reference,
-            UUID principalId
-    );
-
-    Optional<PaymentMandate>
-    findByIdAndPrincipal_Id(
+    Optional<PaymentMandate> findByIdAndPrincipal_Id(
             UUID mandateId,
             UUID principalId
     );
 
-    List<PaymentMandate>
-    findAllByPrincipal_Id(UUID principalId);
-
-    List<PaymentMandate>
-    findAllByAgent_Id(UUID agentId);
+    List<PaymentMandate> findAllByPrincipal_IdOrderByCreatedAtDesc(
+            UUID principalId
+    );
 }

@@ -205,4 +205,8 @@ public class PaymentMandate {
             currencyCode = currencyCode.toUpperCase();
         }
     }
+
+    public void setMandateReference(String s) {
+
+    }
 }
