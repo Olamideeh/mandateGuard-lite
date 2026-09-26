@@ -1,0 +1,8 @@
+target
+.git
+.github
+.idea
+*.iml
+local-keys
+*.pem
+.env
