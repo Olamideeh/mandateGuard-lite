@@ -83,9 +83,21 @@ public class PaymentExecutionService {
             paymentRequest.setDecisionExplanation(
                     providerResult.message()
             );
+            PaymentMandate lockedMandate =
+                    mandateRepository
+                            .findByIdForUpdate(
+                                    paymentRequest
+                                            .getMandate()
+                                            .getId()
+                            )
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Payment mandate not found"
+                                    )
+                            );
 
             releaseReservedMandateUsage(
-                    paymentRequest.getMandate(),
+                    lockedMandate,
                     paymentRequest
             );
         }

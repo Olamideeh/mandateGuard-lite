@@ -141,9 +141,8 @@ public class PaymentRequestService {
                     "The payment reference already exists"
             );
         }
-
         PaymentMandate mandate = mandateRepository
-                .findById(request.mandateId())
+                .findByIdForUpdate(request.mandateId())
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Payment mandate not found"

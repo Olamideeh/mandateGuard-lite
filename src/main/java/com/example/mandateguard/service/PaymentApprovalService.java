@@ -52,8 +52,17 @@ public class PaymentApprovalService {
                 approval.getPaymentRequest();
 
         PaymentMandate mandate =
-                paymentRequest.getMandate();
-
+                mandateRepository
+                        .findByIdForUpdate(
+                                paymentRequest
+                                        .getMandate()
+                                        .getId()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Payment mandate not found"
+                                )
+                        );
         PaymentEvaluationResult currentEvaluation =
                 evaluationService.evaluate(
                         paymentRequest.getAgent(),
