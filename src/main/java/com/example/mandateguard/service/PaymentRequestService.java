@@ -17,6 +17,10 @@ import com.example.mandateguard.repository.PaymentMandateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.mandateguard.entity.PaymentApproval;
+import com.example.mandateguard.enums.ApprovalStatus;
+import com.example.mandateguard.repository.PaymentApprovalRepository;
+
 
 import java.time.Duration;
 import java.time.Instant;
@@ -29,6 +33,7 @@ public class PaymentRequestService {
     private static final Duration ALLOWED_CLOCK_DIFFERENCE =
             Duration.ofMinutes(5);
 
+    private final PaymentApprovalRepository approvalRepository;
     private final AgentPaymentRequestRepository requestRepository;
     private final AiAgentRepository agentRepository;
     private final PaymentMandateRepository mandateRepository;
@@ -174,7 +179,29 @@ public class PaymentRequestService {
         AgentPaymentRequest savedRequest =
                 requestRepository.save(paymentRequest);
 
+        if (result.decision() ==
+                PaymentDecision.REQUIRES_APPROVAL) {
+
+            createApproval(savedRequest, mandate);
+        }
+
         return toResponse(savedRequest);
+    }
+
+    private void createApproval(
+            AgentPaymentRequest paymentRequest,
+            PaymentMandate mandate
+    ) {
+        PaymentApproval approval = new PaymentApproval();
+
+        approval.setPaymentRequest(paymentRequest);
+        approval.setPrincipal(mandate.getPrincipal());
+        approval.setStatus(ApprovalStatus.PENDING);
+        approval.setExpiresAt(
+                Instant.now().plus(Duration.ofMinutes(15))
+        );
+
+        approvalRepository.save(approval);
     }
 
     private void reserveMandateUsage(
