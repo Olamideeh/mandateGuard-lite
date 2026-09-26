@@ -331,4 +331,16 @@ public class PaymentRequestService {
                 request.getCreatedAt()
         );
     }
+    @Transactional(readOnly = true)
+    public java.util.List<PaymentRequestResponse> getPayments(
+            UUID principalId
+    ) {
+        return requestRepository
+                .findAllByMandate_Principal_IdOrderByCreatedAtDesc(
+                        principalId
+                )
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
 }

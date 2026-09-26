@@ -27,4 +27,9 @@ public interface AgentPaymentRequestRepository
     findAllByMandate_Principal_IdOrderByCreatedAtDesc(
             UUID principalId
     );
+    Optional<AgentPaymentRequest>
+    findByIdAndMandate_Principal_Id(
+            UUID paymentRequestId,
+            UUID principalId
+    );
 }
