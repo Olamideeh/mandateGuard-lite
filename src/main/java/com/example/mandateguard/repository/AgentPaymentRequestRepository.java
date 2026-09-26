@@ -10,26 +10,21 @@ import java.util.UUID;
 public interface AgentPaymentRequestRepository
         extends JpaRepository<AgentPaymentRequest, UUID> {
 
-    boolean existsByReference(String reference);
-
     Optional<AgentPaymentRequest>
     findByAgent_IdAndIdempotencyKey(
             UUID agentId,
             String idempotencyKey
     );
 
-    Optional<AgentPaymentRequest>
-    findByAgent_IdAndRequestNonce(
+    boolean existsByAgent_IdAndRequestNonce(
             UUID agentId,
             String requestNonce
     );
 
-    Optional<AgentPaymentRequest>
-    findByReferenceAndMandate_Principal_Id(
-            String reference,
-            UUID principalId
-    );
+    boolean existsByReference(String reference);
 
     List<AgentPaymentRequest>
-    findAllByMandate_Principal_Id(UUID principalId);
+    findAllByMandate_Principal_IdOrderByCreatedAtDesc(
+            UUID principalId
+    );
 }
