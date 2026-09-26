@@ -17,6 +17,9 @@ import com.example.mandateguard.repository.PaymentMandateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.mandateguard.enums.AuditActorType;
+import com.example.mandateguard.enums.AuditEventType;
+
 
 import java.time.Instant;
 import java.util.List;
@@ -26,6 +29,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentApprovalService {
 
+    private final AuditService auditService;
     private final PaymentApprovalRepository approvalRepository;
     private final AgentPaymentRequestRepository requestRepository;
     private final PaymentMandateRepository mandateRepository;
@@ -91,6 +95,21 @@ public class PaymentApprovalService {
         approvalRepository.save(approval);
         requestRepository.save(paymentRequest);
 
+        auditService.record(
+                principalId,
+                paymentRequest.getReference(),
+                AuditActorType.PRINCIPAL,
+                principalId.toString(),
+                AuditEventType.PAYMENT_APPROVED,
+                "PAYMENT_REQUEST",
+                paymentRequest.getId().toString(),
+                "AWAITING_APPROVAL",
+                "AUTHORIZED",
+                decisionRequest.decisionNote() == null
+                        ? "The principal approved the payment"
+                        : decisionRequest.decisionNote()
+        );
+
         return toResponse(approval);
     }
 
@@ -132,6 +151,20 @@ public class PaymentApprovalService {
 
         approvalRepository.save(approval);
         requestRepository.save(paymentRequest);
+        auditService.record(
+                principalId,
+                paymentRequest.getReference(),
+                AuditActorType.PRINCIPAL,
+                principalId.toString(),
+                AuditEventType.PAYMENT_REJECTED,
+                "PAYMENT_REQUEST",
+                paymentRequest.getId().toString(),
+                "AWAITING_APPROVAL",
+                "REJECTED",
+                decisionRequest.decisionNote() == null
+                        ? "The principal rejected the payment"
+                        : decisionRequest.decisionNote()
+        );
 
         return toResponse(approval);
     }

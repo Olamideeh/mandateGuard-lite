@@ -19,6 +19,10 @@ import java.util.UUID;
                 @Index(
                         name = "idx_audit_entity",
                         columnList = "entity_type, entity_id"
+                ),
+                @Index(
+                        name = "idx_audit_principal",
+                        columnList = "principal_id"
                 )
         }
 )
@@ -38,6 +42,12 @@ public class AuditEvent {
             length = 100
     )
     private String correlationId;
+
+    @Column(
+            name = "principal_id",
+            nullable = false
+    )
+    private UUID principalId;
 
     @Enumerated(EnumType.STRING)
     @Column(

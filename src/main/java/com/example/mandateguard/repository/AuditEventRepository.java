@@ -9,13 +9,14 @@ import java.util.UUID;
 public interface AuditEventRepository
         extends JpaRepository<AuditEvent, UUID> {
 
-    List<AuditEvent> findAllByCorrelationIdOrderByOccurredAtAsc(
-            String correlationId
+    List<AuditEvent>
+    findAllByPrincipalIdOrderByOccurredAtDesc(
+            UUID principalId
     );
 
     List<AuditEvent>
-    findAllByEntityTypeAndEntityIdOrderByOccurredAtAsc(
-            String entityType,
-            String entityId
+    findAllByPrincipalIdAndCorrelationIdOrderByOccurredAtAsc(
+            UUID principalId,
+            String correlationId
     );
 }

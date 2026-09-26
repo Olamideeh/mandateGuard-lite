@@ -11,6 +11,9 @@ import com.example.mandateguard.repository.PaymentMandateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.mandateguard.enums.AuditActorType;
+import com.example.mandateguard.enums.AuditEventType;
+
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -20,6 +23,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentExecutionService {
 
+    private final AuditService auditService;
     private final AgentPaymentRequestRepository requestRepository;
     private final PaymentMandateRepository mandateRepository;
     private final SimulatedPaymentProvider paymentProvider;
@@ -88,6 +92,30 @@ public class PaymentExecutionService {
 
         AgentPaymentRequest saved =
                 requestRepository.save(paymentRequest);
+
+        AuditEventType executionEventType =
+                providerResult.successful()
+                        ? AuditEventType.PAYMENT_EXECUTED
+                        : AuditEventType.PAYMENT_FAILED;
+
+        auditService.record(
+                principalId,
+                saved.getReference(),
+                AuditActorType.SYSTEM,
+                null,
+                executionEventType,
+                "PAYMENT_REQUEST",
+                saved.getId().toString(),
+                "AUTHORIZED",
+                saved.getStatus().name(),
+                providerResult.message() +
+                        (
+                                providerResult.providerReference() == null
+                                        ? ""
+                                        : " Provider reference: " +
+                                        providerResult.providerReference()
+                        )
+        );
 
         return toResponse(saved);
     }

@@ -14,6 +14,9 @@ import com.example.mandateguard.repository.PrincipalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.mandateguard.enums.AuditActorType;
+import com.example.mandateguard.enums.AuditEventType;
+
 
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -26,6 +29,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MandateService {
 
+    private final AuditService auditService;
     private final PaymentMandateRepository mandateRepository;
     private final PrincipalRepository principalRepository;
     private final AiAgentRepository agentRepository;
@@ -97,7 +101,19 @@ public class MandateService {
         mandate.setValidFrom(request.validFrom());
         mandate.setExpiresAt(request.expiresAt());
 
-        return toResponse(mandateRepository.save(mandate));
+        PaymentMandate saved =
+                mandateRepository.save(mandate);
+
+        auditMandateChange(
+                principalId,
+                saved,
+                AuditEventType.MANDATE_CREATED,
+                null,
+                MandateStatus.DRAFT.name(),
+                "The principal created a payment mandate"
+        );
+
+        return toResponse(saved);
     }
 
     @Transactional
@@ -118,7 +134,19 @@ public class MandateService {
 
         mandate.setStatus(MandateStatus.ACTIVE);
 
-        return toResponse(mandateRepository.save(mandate));
+        PaymentMandate saved =
+                mandateRepository.save(mandate);
+
+        auditMandateChange(
+                principalId,
+                saved,
+                AuditEventType.MANDATE_ACTIVATED,
+                MandateStatus.DRAFT.name(),
+                MandateStatus.ACTIVE.name(),
+                "The principal activated the mandate"
+        );
+
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -216,7 +244,19 @@ public class MandateService {
 
         mandate.setStatus(MandateStatus.SUSPENDED);
 
-        return toResponse(mandateRepository.save(mandate));
+        PaymentMandate saved =
+                mandateRepository.save(mandate);
+
+        auditMandateChange(
+                principalId,
+                saved,
+                AuditEventType.MANDATE_SUSPENDED,
+                MandateStatus.ACTIVE.name(),
+                MandateStatus.SUSPENDED.name(),
+                "The principal suspended the mandate"
+        );
+
+        return toResponse(saved);
     }
     @Transactional
     public MandateResponse resumeMandate(
@@ -245,7 +285,19 @@ public class MandateService {
 
         mandate.setStatus(MandateStatus.ACTIVE);
 
-        return toResponse(mandateRepository.save(mandate));
+        PaymentMandate saved =
+                mandateRepository.save(mandate);
+
+        auditMandateChange(
+                principalId,
+                saved,
+                AuditEventType.MANDATE_RESUMED,
+                MandateStatus.SUSPENDED.name(),
+                MandateStatus.ACTIVE.name(),
+                "The principal resumed the mandate"
+        );
+
+        return toResponse(saved);
     }
     @Transactional
     public MandateResponse revokeMandate(
@@ -267,6 +319,43 @@ public class MandateService {
 
         mandate.setStatus(MandateStatus.REVOKED);
 
-        return toResponse(mandateRepository.save(mandate));
+        MandateStatus previousStatus = mandate.getStatus();
+
+        mandate.setStatus(MandateStatus.REVOKED);
+
+        PaymentMandate saved =
+                mandateRepository.save(mandate);
+
+        auditMandateChange(
+                principalId,
+                saved,
+                AuditEventType.MANDATE_REVOKED,
+                previousStatus.name(),
+                MandateStatus.REVOKED.name(),
+                "The principal permanently revoked the mandate"
+        );
+
+        return toResponse(saved);
+    }
+    private void auditMandateChange(
+            UUID principalId,
+            PaymentMandate mandate,
+            AuditEventType eventType,
+            String previousState,
+            String newState,
+            String details
+    ) {
+        auditService.record(
+                principalId,
+                mandate.getReference(),
+                AuditActorType.PRINCIPAL,
+                principalId.toString(),
+                eventType,
+                "PAYMENT_MANDATE",
+                mandate.getId().toString(),
+                previousState,
+                newState,
+                details
+        );
     }
 }

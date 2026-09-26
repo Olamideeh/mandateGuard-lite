@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.mandateguard.entity.PaymentApproval;
 import com.example.mandateguard.enums.ApprovalStatus;
 import com.example.mandateguard.repository.PaymentApprovalRepository;
+import com.example.mandateguard.enums.AuditActorType;
+import com.example.mandateguard.enums.AuditEventType;
 
 
 import java.time.Duration;
@@ -33,6 +35,7 @@ public class PaymentRequestService {
     private static final Duration ALLOWED_CLOCK_DIFFERENCE =
             Duration.ofMinutes(5);
 
+    private final AuditService auditService;
     private final PaymentApprovalRepository approvalRepository;
     private final AgentPaymentRequestRepository requestRepository;
     private final AiAgentRepository agentRepository;
@@ -62,33 +65,62 @@ public class PaymentRequestService {
                     "AI agent is not active"
             );
         }
+        UUID principalId = agent.getPrincipal().getId();
 
-        String payloadHash = signatureService.verifyAndHash(
-                agentId,
-                idempotencyKey.trim(),
-                nonce.trim(),
-                signature.trim(),
-                agent.getPublicKeyPem(),
-                request
+        auditService.record(
+                principalId,
+                request.paymentReference(),
+                AuditActorType.AI_AGENT,
+                agentId.toString(),
+                AuditEventType.PAYMENT_REQUEST_RECEIVED,
+                "PAYMENT_REQUEST",
+                request.paymentReference(),
+                null,
+                "RECEIVED",
+                "Signed payment request received from AI agent"
         );
 
-        var existingRequest = requestRepository
-                .findByAgent_IdAndIdempotencyKey(
-                        agentId,
-                        idempotencyKey.trim()
-                );
+        String payloadHash;
 
-        if (existingRequest.isPresent()) {
-            AgentPaymentRequest existing = existingRequest.get();
+        try {
+            payloadHash = signatureService.verifyAndHash(
+                    agentId,
+                    idempotencyKey.trim(),
+                    nonce.trim(),
+                    signature.trim(),
+                    agent.getPublicKeyPem(),
+                    request
+            );
 
-            if (!existing.getRequestPayloadHash()
-                    .equals(payloadHash)) {
-                throw new IdempotencyConflictException(
-                        "The idempotency key was already used for a different payment request"
-                );
-            }
+            auditService.record(
+                    principalId,
+                    request.paymentReference(),
+                    AuditActorType.SYSTEM,
+                    null,
+                    AuditEventType.SIGNATURE_VERIFIED,
+                    "PAYMENT_REQUEST",
+                    request.paymentReference(),
+                    "RECEIVED",
+                    "SIGNATURE_VERIFIED",
+                    "The AI agent RSA signature was verified"
+            );
 
-            return toResponse(existing);
+        } catch (IllegalArgumentException exception) {
+
+            auditService.record(
+                    principalId,
+                    request.paymentReference(),
+                    AuditActorType.SYSTEM,
+                    null,
+                    AuditEventType.SIGNATURE_REJECTED,
+                    "PAYMENT_REQUEST",
+                    request.paymentReference(),
+                    "RECEIVED",
+                    "SIGNATURE_REJECTED",
+                    exception.getMessage()
+            );
+
+            throw exception;
         }
 
         validateTimestamp(request.agentTimestamp());
@@ -178,12 +210,36 @@ public class PaymentRequestService {
 
         AgentPaymentRequest savedRequest =
                 requestRepository.save(paymentRequest);
-
         if (result.decision() ==
                 PaymentDecision.REQUIRES_APPROVAL) {
 
             createApproval(savedRequest, mandate);
         }
+
+        AuditEventType decisionEventType =
+                switch (result.decision()) {
+                    case ALLOWED ->
+                            AuditEventType.PAYMENT_ALLOWED;
+                    case DENIED ->
+                            AuditEventType.PAYMENT_DENIED;
+                    case REQUIRES_APPROVAL ->
+                            AuditEventType.APPROVAL_REQUESTED;
+                };
+
+        auditService.record(
+                principalId,
+                savedRequest.getReference(),
+                AuditActorType.SYSTEM,
+                null,
+                decisionEventType,
+                "PAYMENT_REQUEST",
+                savedRequest.getId().toString(),
+                "RECEIVED",
+                savedRequest.getStatus().name(),
+                result.reasonCode().name() +
+                        ": " +
+                        result.explanation()
+        );
 
         return toResponse(savedRequest);
     }
